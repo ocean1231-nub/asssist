@@ -10,7 +10,8 @@
     "start:nosandbox": "electron . --no-sandbox",
     "test": "node --test test/run-tests.js",
     "dist:win": "electron-builder --win portable --x64",
-    "test:ui": "node test/ui-smoke.js"
+    "test:ui": "node test/ui-smoke.js",
+    "dist:linux": "electron-builder --linux AppImage deb --x64 --arm64"
   },
   "build": {
     "appId": "dev.local.claude-file-agent",
@@ -27,6 +28,22 @@
     },
     "portable": {
       "artifactName": "DocumentAgent.exe"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "executableName": "document-agent",
+      "maintainer": "ocean1231-nub <ocean1231-nub@users.noreply.github.com>",
+      "synopsis": "문서를 읽고 요약하고 작성하는 Claude 에이전트"
+    },
+    "appImage": {
+      "artifactName": "DocumentAgent-${arch}.AppImage"
+    },
+    "deb": {
+      "artifactName": "document-agent_${arch}.deb"
     }
   },
   "dependencies": {
