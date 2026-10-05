@@ -3,6 +3,11 @@
   "productName": "문서 에이전트",
   "version": "0.1.0",
   "description": "문서를 읽고, 요약하고, 작성하는 Claude 데스크톱 에이전트",
+  "homepage": "https://github.com/ocean1231-nub/document-agent",
+  "author": {
+    "name": "ocean1231-nub"
+  },
+  "desktopName": "document-agent.desktop",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -37,7 +42,8 @@
       "category": "Office",
       "executableName": "document-agent",
       "maintainer": "ocean1231-nub <ocean1231-nub@users.noreply.github.com>",
-      "synopsis": "문서를 읽고 요약하고 작성하는 Claude 에이전트"
+      "synopsis": "문서를 읽고 요약하고 작성하는 Claude 에이전트",
+      "syncDesktopName": true
     },
     "appImage": {
       "artifactName": "DocumentAgent-${arch}.AppImage"
