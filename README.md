@@ -26,7 +26,7 @@
 
 ## Linux / 크롬북에서 받기
 
-https://github.com/ocean1231-nub/register/releases/tag/desktop-latest
+https://github.com/ocean1231-nub/asssist/releases/latest
 
 - **크롬북**: "Linux 개발 환경"을 켠 뒤 `.deb` 파일을 받아 파일 앱에서 더블클릭 → "설치"를 누릅니다. 설치가 끝나면 런처의 "Linux 앱" 폴더에 "문서 에이전트"가 생깁니다.
   - 이름에 `arm64`가 들어간 파일은 ARM 크롬북용, 나머지는 인텔/AMD용입니다. 내 크롬북이 어느 쪽인지는 터미널에서 `uname -m` 으로 확인합니다 (`aarch64` = ARM, `x86_64` = 인텔/AMD).
@@ -43,13 +43,13 @@ https://github.com/ocean1231-nub/register/releases/tag/desktop-latest
    sudo apt install -y git curl fonts-noto-cjk libnss3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2 libxss1
    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
    sudo apt install -y nodejs
-   git clone -b claude/local-mindmap-tool-r3jfc7 https://github.com/ocean1231-nub/register.git
-   cd register/desktop
+   git clone https://github.com/ocean1231-nub/asssist.git
+   cd asssist
    npm install
    ```
 3. 실행
    ```
-   cd ~/register/desktop
+   cd ~/asssist
    npm start
    ```
    "SUID sandbox helper" 오류로 창이 안 뜨면 `npm run start:nosandbox` 로 실행하세요 (테스트용).
@@ -60,13 +60,13 @@ https://github.com/ocean1231-nub/register/releases/tag/desktop-latest
 
 ## Windows에서 받기
 
-https://github.com/ocean1231-nub/register/releases/download/desktop-latest/DocumentAgent.exe
+https://github.com/ocean1231-nub/asssist/releases/latest/download/DocumentAgent.exe
 
 링크를 누르면 `DocumentAgent.exe` 하나가 받아집니다. 설치 없이 더블클릭하면 실행됩니다 (로그인 불필요, 링크 고정).
 
 - 코드 서명을 하지 않은 파일이라 처음 실행할 때 "Windows의 PC 보호" 창이 뜹니다. "추가 정보" → "실행"을 누르세요.
 - 실행할 때마다 내부 파일을 푸느라 창이 뜨기까지 몇 초 걸립니다.
-- `desktop/` 변경을 GitHub에 올리면 GitHub Actions의 "Desktop app build"가 Windows에서 테스트·빌드한 뒤 같은 링크의 파일을 새 버전으로 바꿉니다.
+- main 브랜치에 변경을 올리면 GitHub Actions의 "Build"가 Windows에서 테스트·빌드한 뒤 같은 링크의 파일을 새 버전으로 바꿉니다.
 
 Windows PC에서 직접 만들려면: Node.js 22 설치 후 `npm install` → `npm run dist:win` (결과물은 `dist/DocumentAgent.exe`).
 

@@ -1,0 +1,100 @@
+name: Build
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    windows:
+        name: Windows portable exe
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+                  cache-dependency-path: package-lock.json
+
+            - name: Install
+              run: npm ci
+
+            - name: Test
+              run: npm test
+
+            - name: Build
+              run: npx electron-builder --win portable --x64 --publish never
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: document-agent-windows
+                  path: dist/DocumentAgent.exe
+                  if-no-files-found: error
+
+    linux:
+        name: Linux AppImage and deb
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+                  cache-dependency-path: package-lock.json
+
+            - name: Install
+              run: npm ci
+
+            - name: Test
+              run: npm test
+
+            - name: Build
+              run: npx electron-builder --linux AppImage deb --x64 --arm64 --publish never
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: document-agent-linux
+                  path: |
+                      dist/*.AppImage
+                      dist/*.deb
+                  if-no-files-found: error
+
+    release:
+        name: Publish download links
+        needs: [windows, linux]
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        env:
+            GH_TOKEN: ${{ github.token }}
+            TAG: latest
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  pattern: document-agent-*
+                  merge-multiple: true
+
+            # 고정 태그 하나를 매번 새 빌드로 교체해서 다운로드 링크가 바뀌지 않게 한다
+            - name: Replace release
+              run: |
+                  gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+                  ls -la
+                  gh release create "$TAG" DocumentAgent.exe *.AppImage *.deb \
+                    --repo "$GITHUB_REPOSITORY" \
+                    --target "$GITHUB_SHA" \
+                    --title "문서 에이전트 (Windows / Linux)" \
+                    --notes-file - <<EOF
+                  Windows: DocumentAgent.exe 를 받아 더블클릭하면 설치 없이 실행됩니다. 처음 실행 시 'Windows의 PC 보호' 창이 뜨면 '추가 정보' -> '실행'을 누르세요.
+
+                  크롬북 / Debian / Ubuntu: .deb 파일을 받아 파일 앱에서 더블클릭해 설치합니다. 이름에 arm64가 들어간 파일은 ARM 크롬북용, 나머지는 일반(인텔/AMD) PC용입니다.
+
+                  기타 Linux: .AppImage 파일을 받아 실행 권한을 주고 실행합니다 (libfuse2 필요). arm64 구분은 위와 같습니다.
+
+                  빌드 커밋: $GITHUB_SHA
+                  EOF
