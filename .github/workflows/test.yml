@@ -1,0 +1,31 @@
+name: Test
+
+on:
+    pull_request:
+    push:
+        branches-ignore: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+                  cache-dependency-path: package-lock.json
+
+            # Electron 바이너리는 테스트에 필요 없다
+            - name: Install
+              run: npm ci
+              env:
+                  ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+            - name: Test
+              run: npm test
