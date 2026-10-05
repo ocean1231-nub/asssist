@@ -57,7 +57,10 @@ function mockApi(hasKey) {
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     await page.addInitScript(mockApi, false);
     await page.goto(fileUrl);
-    check(await page.locator("#settingsDialog").evaluate((d) => d.open), "키가 없으면 설정 창이 열린다");
+    check(!(await page.locator("#settingsDialog").evaluate((d) => d.open)), "시작할 때 설정 창이 뜨지 않는다");
+    await page.fill("#input", "안녕하세요");
+    await page.press("#input", "Enter");
+    check(await page.locator("#settingsDialog").evaluate((d) => d.open), "키 없이 보내면 설정 창이 열린다");
     if (outDir) await page.screenshot({ path: path.join(outDir, "1-settings.png") });
     await page.fill("#apiKeyInput", "sk-ant-test");
     await page.click("#settingsSave");

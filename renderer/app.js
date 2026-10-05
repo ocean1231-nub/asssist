@@ -141,6 +141,8 @@ function openSettings() {
   if (!state.hasKey) els.apiKeyInput.focus();
 }
 
+els.settingsDialog.addEventListener("close", () => setTimeout(() => els.input.focus(), 0));
+
 els.settingsForm.addEventListener("submit", async (e) => {
   if (e.submitter && e.submitter.value === "cancel") return;
   e.preventDefault();
@@ -159,6 +161,7 @@ async function chooseWorkspace() {
   if (busy) return;
   const before = state.workspace;
   applyState(await api.chooseWorkspace());
+  els.input.focus();
   if (state.workspace && state.workspace !== before) {
     clearConversation();
     notice("info", `작업 폴더: ${state.workspace}`);
@@ -474,7 +477,8 @@ api.onApprovalCancel(() => {
 (async () => {
   applyState(await api.getState());
   if (state.keyFromEnv) els.apiKeyHint.textContent = "환경변수 ANTHROPIC_API_KEY 의 키를 쓰고 있습니다. 여기 입력하면 이 키를 대신 씁니다.";
-  if (!state.hasKey) openSettings();
+  // 시작할 때 창을 띄우지 않는다 (입력창을 바로 쓸 수 있게). 키/폴더는 처음 보낼 때 묻는다.
+  if (!state.hasKey) notice("info", "API 키가 없습니다. 먼저 질문을 입력해 보세요. 보낼 때 키 입력 창이 열립니다.");
   else if (!state.workspace) notice("info", "위쪽의 \"작업 폴더 선택\"을 눌러 문서가 있는 폴더를 고르세요.");
   els.input.focus();
 })();

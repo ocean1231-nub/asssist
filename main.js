@@ -151,6 +151,7 @@ function registerIpc() {
 
   ipcMain.handle("workspace:choose", async () => {
     const r = await dialog.showOpenDialog(win, { title: "작업 폴더 선택", properties: ["openDirectory", "createDirectory"] });
+    refocus();
     if (r.canceled || !r.filePaths[0]) return state();
     settings.workspace = r.filePaths[0];
     saveSettings();
@@ -221,6 +222,14 @@ function registerIpc() {
 
 // ------------------------------------------------------------------ 창
 
+// 네이티브 대화상자가 닫힌 뒤 입력(한글 IME 포함)이 먹통이 되는 문제 방지
+function refocus() {
+  if (!win || win.isDestroyed()) return;
+  win.blur();
+  win.focus();
+  win.webContents.focus();
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1120,
@@ -257,6 +266,10 @@ if (!app.requestSingleInstanceLock()) {
       win.focus();
     }
   });
+  if (process.platform === "linux") {
+    app.commandLine.appendSwitch("enable-wayland-ime");
+    app.commandLine.appendSwitch("enable-features", "UseOzonePlatform,WaylandTextInputV3");
+  }
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
     loadSettings();

@@ -9,6 +9,7 @@
   },
   "desktopName": "document-agent.desktop",
   "main": "main.js",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "start": "electron .",
