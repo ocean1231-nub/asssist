@@ -1,0 +1,54 @@
+{
+  "name": "claude-file-agent",
+  "productName": "문서 에이전트",
+  "version": "0.1.0",
+  "description": "문서를 읽고, 요약하고, 작성하는 Claude 데스크톱 에이전트",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "start:nosandbox": "electron . --no-sandbox",
+    "test": "node --test test/run-tests.js",
+    "dist:win": "electron-builder --win nsis --x64",
+    "test:ui": "node test/ui-smoke.js"
+  },
+  "build": {
+    "appId": "dev.local.claude-file-agent",
+    "productName": "문서 에이전트",
+    "artifactName": "document-agent-setup-${version}.exe",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**",
+      "renderer/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "cfb": "^1.2.2",
+    "diff": "^9.0.0",
+    "docx": "^9.8.1",
+    "dompurify": "^3.4.16",
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.2",
+    "mammoth": "^1.13.0",
+    "marked": "^18.0.14",
+    "word-extractor": "^1.0.4"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

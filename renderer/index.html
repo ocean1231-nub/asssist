@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>문서 에이전트</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">문서 에이전트</div>
+    <button id="workspaceBtn" class="workspace" title="작업 폴더 바꾸기">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2h8.4A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>
+      <span id="workspaceLabel">작업 폴더 선택</span>
+    </button>
+    <button id="openFolderBtn" class="ghost small" title="탐색기에서 열기">열기</button>
+    <div class="spacer"></div>
+    <select id="modelSelect" title="모델"></select>
+    <span id="costLabel" class="cost" title="이번 실행에서 쓴 예상 비용">$0.0000</span>
+    <button id="newChatBtn" class="ghost">새 대화</button>
+    <button id="settingsBtn" class="ghost">설정</button>
+  </header>
+
+  <main id="scroller">
+    <div id="conversation" class="conversation">
+      <section id="welcome" class="welcome">
+        <h1>무엇을 도와드릴까요?</h1>
+        <p>작업 폴더 안의 문서를 읽고, 요약하고, 새 문서를 만듭니다. 파일을 바꾸기 전에는 항상 확인을 받습니다.</p>
+        <p class="formats">읽기: hwp, hwpx, docx, doc, xlsx, csv, pptx, pdf, odt, 이미지, 텍스트 · 만들기: hwpx, docx, xlsx, pdf</p>
+        <div class="examples">
+          <button class="example">이 폴더에 어떤 문서가 있는지 정리해줘</button>
+          <button class="example">가장 최근 공문을 읽고 해야 할 일만 요약해줘</button>
+          <button class="example">회의 내용을 공문 형식의 한글(hwpx) 문서로 만들어줘</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="composer-wrap">
+    <div id="attachments" class="attachments"></div>
+    <div class="composer">
+      <button id="attachBtn" class="icon" title="파일 첨부 (끌어다 놓아도 됩니다)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 6.5 8.4 14.6a2 2 0 0 0 2.8 2.8l8.1-8.1a4 4 0 0 0-5.6-5.6l-8.1 8.1a6 6 0 0 0 8.5 8.5l7.1-7.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <input id="fileInput" type="file" multiple hidden>
+      <textarea id="input" rows="1" placeholder="메시지 입력 (Enter 보내기, Shift+Enter 줄바꿈)"></textarea>
+      <button id="sendBtn" class="primary">보내기</button>
+    </div>
+  </footer>
+
+  <div id="dropOverlay" class="drop-overlay" hidden>
+    <div>여기에 놓으면 작업 폴더의 "첨부" 폴더로 복사됩니다</div>
+  </div>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" id="settingsForm">
+      <h2>설정</h2>
+      <label class="field">
+        <span>Anthropic API 키</span>
+        <input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-ant-...">
+        <small id="apiKeyHint">키는 이 컴퓨터에 암호화해서 저장됩니다. <a href="https://platform.claude.com/settings/keys" class="ext">키 발급 페이지</a></small>
+      </label>
+      <label class="field">
+        <span>모델</span>
+        <select id="settingsModel"></select>
+      </label>
+      <label class="field">
+        <span>생각 깊이</span>
+        <select id="settingsEffort">
+          <option value="low">낮음 - 빠르고 저렴</option>
+          <option value="medium">보통 (권장)</option>
+          <option value="high">높음</option>
+          <option value="xhigh">매우 높음</option>
+          <option value="max">최대 - 느리고 비쌈</option>
+        </select>
+        <small>Haiku 모델에서는 적용되지 않습니다.</small>
+      </label>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost" formnovalidate>취소</button>
+        <button value="save" class="primary" id="settingsSave">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="../node_modules/marked/lib/marked.umd.js"></script>
+  <script src="../node_modules/dompurify/dist/purify.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+Skeleton.hwpx 는 python-hwpx (https://pypi.org/project/python-hwpx/) 에 포함된
+빈 HWPX 문서 양식을 그대로 가져온 것입니다.
+
+python-hwpx
+Copyright 2025-2026 airmang
+Licensed under the Apache License, Version 2.0.
+http://www.apache.org/licenses/LICENSE-2.0
