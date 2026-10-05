@@ -267,8 +267,8 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
   if (process.platform === "linux") {
-    app.commandLine.appendSwitch("enable-wayland-ime");
-    app.commandLine.appendSwitch("enable-features", "UseOzonePlatform,WaylandTextInputV3");
+    // 크롬북(Crostini)에서는 Wayland 입력기가 한글을 못 받아서 X11(GTK 입력기 cros)로 강제한다.
+    app.commandLine.appendSwitch("ozone-platform", "x11");
   }
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
