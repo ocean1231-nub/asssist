@@ -9,13 +9,12 @@
     "start": "electron .",
     "start:nosandbox": "electron . --no-sandbox",
     "test": "node --test test/run-tests.js",
-    "dist:win": "electron-builder --win nsis --x64",
+    "dist:win": "electron-builder --win portable --x64",
     "test:ui": "node test/ui-smoke.js"
   },
   "build": {
     "appId": "dev.local.claude-file-agent",
     "productName": "문서 에이전트",
-    "artifactName": "document-agent-setup-${version}.exe",
     "files": [
       "main.js",
       "preload.js",
@@ -24,12 +23,10 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": "portable"
     },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "perMachine": false
+    "portable": {
+      "artifactName": "DocumentAgent.exe"
     }
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 # 문서 에이전트 (데스크톱 앱)
 
-문서를 읽고, 요약하고, 새 문서를 만드는 Claude 기반 데스크톱 앱입니다. Windows용 설치 파일로 배포하고, 크롬북(Linux)에서 개발·테스트할 수 있습니다.
+문서를 읽고, 요약하고, 새 문서를 만드는 Claude 기반 데스크톱 앱입니다. Windows용 실행 파일(exe 하나)로 배포하고, 크롬북(Linux)에서 개발·테스트할 수 있습니다.
 
 - 대화하면서 작업 폴더 안의 문서를 다룹니다. 파일을 끌어다 놓으면 작업 폴더의 `첨부` 폴더로 복사됩니다.
 - 파일을 만들거나 바꾸기 전에 미리보기를 보여주고 허용/거부를 묻습니다. 거부할 때 이유를 적으면 에이전트가 반영해 다시 시도합니다.
@@ -48,15 +48,17 @@
 
 한글 입력이 안 되면 다른 앱에서 쓴 뒤 붙여 넣으세요. 크롬북의 Linux 앱 한글 입력 지원은 ChromeOS 버전에 따라 다릅니다.
 
-## Windows 설치 파일 만들기
+## Windows에서 받기
 
-GitHub에 `desktop/` 변경을 올리면 GitHub Actions의 "Desktop app build"가 Windows에서 테스트 후 설치 파일을 만듭니다.
+https://github.com/ocean1231-nub/register/releases/download/desktop-latest/DocumentAgent.exe
 
-1. 저장소의 Actions 탭 → "Desktop app build" → 최근 실행 → 아래쪽 Artifacts의 `document-agent-windows` 를 받습니다 (zip 안에 `.exe`).
-2. 포크 저장소라면 Actions 탭에서 워크플로 사용을 한 번 허용해야 합니다.
-3. 코드 서명을 하지 않은 설치 파일이라, 처음 실행할 때 "Windows의 PC 보호" 창이 뜹니다. "추가 정보" → "실행"을 누르세요.
+링크를 누르면 `DocumentAgent.exe` 하나가 받아집니다. 설치 없이 더블클릭하면 실행됩니다 (로그인 불필요, 링크 고정).
 
-Windows PC에서 직접 만들려면: Node.js 22 설치 후 `npm install` → `npm run dist:win` (결과물은 `dist/`).
+- 코드 서명을 하지 않은 파일이라 처음 실행할 때 "Windows의 PC 보호" 창이 뜹니다. "추가 정보" → "실행"을 누르세요.
+- 실행할 때마다 내부 파일을 푸느라 창이 뜨기까지 몇 초 걸립니다.
+- `desktop/` 변경을 GitHub에 올리면 GitHub Actions의 "Desktop app build"가 Windows에서 테스트·빌드한 뒤 같은 링크의 파일을 새 버전으로 바꿉니다.
+
+Windows PC에서 직접 만들려면: Node.js 22 설치 후 `npm install` → `npm run dist:win` (결과물은 `dist/DocumentAgent.exe`).
 
 ## 대화 중
 
