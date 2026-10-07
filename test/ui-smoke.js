@@ -40,6 +40,7 @@ function mockApi(hasKey) {
     openFolder: async () => calls.push(["openFolder"]),
     openLink: async (u) => calls.push(["link", u]),
     pathForFile: (f) => f.name,
+    onDockChanged: (cb) => { window.__dockChanged = cb; },
     onEvent: (cb) => listeners.event.push(cb),
     onApproval: (cb) => listeners.approval.push(cb),
     onApprovalCancel: (cb) => listeners.cancel.push(cb),

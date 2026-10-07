@@ -17,6 +17,9 @@ let settings = { model: DEFAULT_MODEL, effort: "medium", workspace: null, apiKey
 let agent = null;
 let normalBounds = null; // 옆에 붙이기 전의 창 위치·크기
 const DOCK_WIDTH = 420;
+const SNAP_DISTANCE = 24; // 창 오른쪽 끝이 화면 오른쪽 끝에서 이만큼 안쪽이면 자동으로 붙는다
+let dockBusyUntil = 0; // 프로그램이 창을 옮기는 동안(자동 붙임 판정 무시)
+let snapTimer = null;
 const pendingApprovals = new Map();
 let approvalSeq = 0;
 
@@ -258,14 +261,33 @@ function applyDock(on) {
       return { x: wa.x + Math.round((wa.width - 1120) / 2), y: wa.y + Math.round((wa.height - 800) / 2), width: 1120, height: 800 };
     })();
     normalBounds = null;
+    // 화면 끝에 붙은 채 풀리면 살짝만 건드려도 다시 붙으므로 안쪽으로 민다.
+    const wa = screen.getDisplayMatching(target).workArea;
+    const limit = wa.x + wa.width - (SNAP_DISTANCE + 60);
+    if (target.x + target.width > limit) target = { ...target, x: Math.max(wa.x, limit - target.width) };
     win.setAlwaysOnTop(false);
     win.setMinimumSize(720, 520);
   }
   // X11(크롬북)에서는 크기 변경이 비동기라 한 번 더 적용해야 안정적이다.
+  dockBusyUntil = Date.now() + 1200;
   win.setBounds(target);
   setTimeout(() => {
     if (win && settings.dock === on) win.setBounds(target);
   }, 250);
+}
+
+/** 창을 끌어서 화면 오른쪽 끝에 대면 자동으로 옆에 붙인다. */
+function maybeSnapToEdge() {
+  if (!win || settings.dock || Date.now() < dockBusyUntil) return;
+  if (win.isMaximized() || win.isFullScreen() || win.isMinimized()) return;
+  const b = win.getBounds();
+  const wa = screen.getDisplayMatching(b).workArea;
+  if (b.x + b.width < wa.x + wa.width - SNAP_DISTANCE) return;
+  if (b.width >= wa.width - 40) return; // 화면 거의 전체를 덮는 창은 대상이 아니다
+  settings.dock = true;
+  saveSettings();
+  applyDock(true);
+  win.webContents.send("window:dock-changed", state());
 }
 
 function createWindow() {
@@ -293,7 +315,13 @@ function createWindow() {
   win.webContents.once("did-finish-load", () => {
     if (settings.dock) setTimeout(() => applyDock(true), 300);
   });
+  // 끌기가 끝나길(0.5초 동안 더 안 움직이길) 기다렸다가 판정한다. Linux는 'moved'가 없어 'move'를 쓴다.
+  win.on("move", () => {
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(maybeSnapToEdge, 500);
+  });
   win.on("closed", () => {
+    clearTimeout(snapTimer);
     win = null;
   });
 }

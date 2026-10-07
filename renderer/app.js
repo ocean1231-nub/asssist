@@ -184,6 +184,7 @@ els.workspaceBtn.addEventListener("click", chooseWorkspace);
 els.openFolderBtn.addEventListener("click", () => bridge.openFolder());
 els.settingsBtn.addEventListener("click", openSettings);
 els.dockBtn.addEventListener("click", async () => applyState(await bridge.setDock(!state.dock)));
+bridge.onDockChanged((st) => applyState(st));
 els.modelSelect.addEventListener("change", async () => {
   applyState(await bridge.saveSettings({ model: els.modelSelect.value }));
 });
