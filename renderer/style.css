@@ -302,3 +302,4 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 }
 .task:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .task:disabled { opacity: 0.5; cursor: default; }
+.field[hidden] { display: none; }

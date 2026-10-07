@@ -39,6 +39,10 @@ const els = {
   apiKeyInput: $("apiKeyInput"),
   apiKeyHint: $("apiKeyHint"),
   settingsModel: $("settingsModel"),
+  settingsProvider: $("settingsProvider"),
+  providerHint: $("providerHint"),
+  apiKeyLabel: $("apiKeyLabel"),
+  effortField: $("effortField"),
   settingsEffort: $("settingsEffort"),
   dropOverlay: $("dropOverlay"),
 };
@@ -134,13 +138,55 @@ function applyState(s) {
   document.body.classList.toggle("dock", !!s.dock);
   els.dockBtn.textContent = s.dock ? "창으로 보기" : "옆에 붙이기";
   els.input.placeholder = s.dock ? "메시지 입력 (Enter 보내기)" : "메시지 입력 (Enter 보내기, Shift+Enter 줄바꿈)";
-  if (s.cost) els.costLabel.textContent = `$${s.cost.total.toFixed(4)}`;
+  els.costLabel.textContent = s.provider === "gemini" ? "무료 키" : s.cost ? `$${s.cost.total.toFixed(4)}` : "$0.0000";
 }
+
+const PROVIDER_TEXT = {
+  anthropic: {
+    label: "Anthropic API 키",
+    placeholder: "sk-ant-...",
+    link: "https://platform.claude.com/settings/keys",
+    hint: "",
+  },
+  gemini: {
+    label: "Gemini API 키",
+    placeholder: "구글에서 받은 키를 붙여넣기",
+    link: "https://aistudio.google.com/apikey",
+    hint: "무료 키는 입력한 내용이 구글의 모델 개선에 쓰일 수 있습니다. 공개해도 되는 문서에만 쓰세요.",
+  },
+};
+
+/** 설정 창을 고른 서비스(제공자)에 맞게 바꾼다. */
+function showProvider(id) {
+  const t = PROVIDER_TEXT[id];
+  const info = state.providers[id];
+  els.apiKeyLabel.textContent = t.label;
+  els.apiKeyInput.placeholder = info.hasKey ? "저장된 키가 있습니다 (바꿀 때만 입력)" : t.placeholder;
+  els.apiKeyHint.innerHTML = "";
+  els.apiKeyHint.append("키는 이 컴퓨터에 암호화해서 저장됩니다. ");
+  const a = document.createElement("a");
+  a.href = t.link;
+  a.className = "ext";
+  a.textContent = "키 발급 페이지";
+  els.apiKeyHint.append(a);
+  els.providerHint.textContent = t.hint;
+  els.settingsModel.innerHTML = "";
+  for (const m of info.models) {
+    const o = document.createElement("option");
+    o.value = m.id;
+    o.textContent = m.label;
+    els.settingsModel.appendChild(o);
+  }
+  els.settingsModel.value = info.model;
+  els.effortField.hidden = id === "gemini";
+}
+
+els.settingsProvider.addEventListener("change", () => showProvider(els.settingsProvider.value));
 
 function openSettings() {
   els.apiKeyInput.value = "";
-  els.apiKeyInput.placeholder = state.hasKey ? "저장된 키가 있습니다 (바꿀 때만 입력)" : "sk-ant-...";
-  els.settingsModel.value = state.model;
+  els.settingsProvider.value = state.provider;
+  showProvider(state.provider);
   els.settingsEffort.value = state.effort;
   els.settingsDialog.showModal();
   if (!state.hasKey) els.apiKeyInput.focus();
@@ -152,13 +198,15 @@ els.settingsForm.addEventListener("submit", async (e) => {
   if (e.submitter && e.submitter.value === "cancel") return;
   e.preventDefault();
   const apiKey = els.apiKeyInput.value.trim();
-  if (!apiKey && !state.hasKey) {
+  const provider = els.settingsProvider.value;
+  const prevProvider = state.provider;
+  if (!apiKey && !state.providers[provider].hasKey) {
     els.apiKeyInput.focus();
     return;
   }
-  applyState(await bridge.saveSettings({ apiKey, model: els.settingsModel.value, effort: els.settingsEffort.value }));
+  applyState(await bridge.saveSettings({ provider, apiKey, model: els.settingsModel.value, effort: els.settingsEffort.value }));
   els.settingsDialog.close();
-  if (apiKey) notice("info", "API 키를 저장했습니다. 대화를 새로 시작합니다.");
+  if (apiKey || provider !== (prevProvider)) notice("info", apiKey ? "API 키를 저장했습니다. 대화를 새로 시작합니다." : "AI 서비스를 바꿨습니다. 대화를 새로 시작합니다.");
   if (!state.workspace) chooseWorkspace();
 });
 
@@ -389,7 +437,7 @@ bridge.onEvent((evt) => {
       break;
     }
     case "cost":
-      els.costLabel.textContent = `$${evt.total.toFixed(4)}`;
+      els.costLabel.textContent = state && state.provider === "gemini" ? "무료 키" : `$${evt.total.toFixed(4)}`;
       els.costLabel.title = `이번 요청 약 $${evt.spent.toFixed(4)} · 입력 ${evt.tokens.input.toLocaleString()} / 캐시 쓰기 ${evt.tokens.cache_write.toLocaleString()} / 캐시 읽기 ${evt.tokens.cache_read.toLocaleString()} / 출력 ${evt.tokens.output.toLocaleString()} 토큰`;
       break;
     case "notice":

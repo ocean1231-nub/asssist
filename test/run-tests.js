@@ -384,3 +384,72 @@ test("에이전트: API 오류는 기록을 되돌리고 안내한다", async ()
   assert.equal(agent.messages.length, 0);
   assert.match(events.find((e) => e.type === "notice").text, /API 키가 올바르지 않습니다/);
 });
+
+// ------------------------------------------------------------------ Gemini
+
+function sseResponse(chunks) {
+  const enc = new TextEncoder();
+  return new Response(
+    new ReadableStream({
+      start(c) {
+        for (const ch of chunks) c.enqueue(enc.encode(`data: ${JSON.stringify(ch)}\r\n\r\n`));
+        c.close();
+      },
+    }),
+    { status: 200, headers: { "content-type": "text/event-stream" } }
+  );
+}
+
+test("Gemini 에이전트: 도구 호출 후 답변 (가짜 서버)", async () => {
+  const { GeminiAgent } = require("../src/gemini");
+  const ws = new Workspace(tmp, {});
+  fs.writeFileSync(path.join(tmp, "g.txt"), "안녕");
+  const bodies = [];
+  let call = 0;
+  const fetchImpl = async (url, init) => {
+    bodies.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+    call++;
+    if (call === 1) {
+      return sseResponse([
+        { candidates: [{ content: { role: "model", parts: [{ text: "읽어볼게요. " }] } }] },
+        { candidates: [{ content: { role: "model", parts: [{ functionCall: { name: "read_file", args: { path: "g.txt" } }, thoughtSignature: "SIG" }] }, finishReason: "STOP" }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } },
+      ]);
+    }
+    return sseResponse([
+      { candidates: [{ content: { role: "model", parts: [{ text: "내용은 " }] } }] },
+      { candidates: [{ content: { role: "model", parts: [{ text: "안녕입니다." }] }, finishReason: "STOP" }], usageMetadata: { promptTokenCount: 30, candidatesTokenCount: 4 } },
+    ]);
+  };
+  const events = [];
+  const agent = new GeminiAgent({ apiKey: "K", workspace: ws, onEvent: (e) => events.push(e), approve: async () => ({ approved: true }), fetchImpl });
+  await agent.send("g.txt 읽어줘");
+
+  assert.match(bodies[0].url, /gemini-2\.5-flash:streamGenerateContent\?alt=sse$/);
+  assert.equal(bodies[0].headers["x-goog-api-key"], "K");
+  const decl = bodies[0].body.tools[0].functionDeclarations;
+  assert.ok(decl.some((d) => d.name === "read_file"));
+  assert.ok(!JSON.stringify(decl).includes("additionalProperties"));
+  // 두 번째 요청에는 모델 응답(서명 포함)과 함수 응답이 이어져야 한다
+  const c2 = bodies[1].body.contents;
+  assert.equal(c2[1].role, "model");
+  assert.equal(c2[1].parts.find((p) => p.functionCall).thoughtSignature, "SIG");
+  assert.equal(c2[2].role, "user");
+  assert.match(c2[2].parts[0].functionResponse.response.output, /안녕/);
+  const text = events.filter((e) => e.type === "text").map((e) => e.text).join("");
+  assert.equal(text, "읽어볼게요. 내용은 안녕입니다.");
+  assert.ok(events.some((e) => e.type === "tool_result" && !e.isError));
+  assert.equal(events.at(-1).busy, false);
+  assert.equal(agent.cost.tokens.input, 40);
+});
+
+test("Gemini 에이전트: 오류는 한국어 안내로, 기록은 되돌린다", async () => {
+  const { GeminiAgent } = require("../src/gemini");
+  const mk = (status, msg) => async () => new Response(JSON.stringify({ error: { message: msg } }), { status });
+  for (const [status, msg, re] of [[429, "quota", /무료 한도/], [400, "API key not valid", /키가 올바르지/], [404, "model not found", /모델을 찾을 수 없습니다/]]) {
+    const events = [];
+    const agent = new GeminiAgent({ apiKey: "K", workspace: new Workspace(tmp, {}), onEvent: (e) => events.push(e), approve: async () => ({}), fetchImpl: mk(status, msg) });
+    await agent.send("x");
+    assert.match(events.find((e) => e.level === "error").text, re);
+    assert.equal(agent.messages.length, 0);
+  }
+});

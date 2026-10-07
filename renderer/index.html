@@ -63,7 +63,15 @@
     <form method="dialog" id="settingsForm">
       <h2>설정</h2>
       <label class="field">
-        <span>Anthropic API 키</span>
+        <span>AI 서비스</span>
+        <select id="settingsProvider">
+          <option value="anthropic">Claude (유료 API 키)</option>
+          <option value="gemini">Gemini (무료 키 가능)</option>
+        </select>
+        <small id="providerHint"></small>
+      </label>
+      <label class="field">
+        <span id="apiKeyLabel">Anthropic API 키</span>
         <input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-ant-...">
         <small id="apiKeyHint">키는 이 컴퓨터에 암호화해서 저장됩니다. <a href="https://platform.claude.com/settings/keys" class="ext">키 발급 페이지</a></small>
       </label>
@@ -71,7 +79,7 @@
         <span>모델</span>
         <select id="settingsModel"></select>
       </label>
-      <label class="field">
+      <label class="field" id="effortField">
         <span>생각 깊이</span>
         <select id="settingsEffort">
           <option value="low">낮음 - 빠르고 저렴</option>

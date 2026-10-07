@@ -7,13 +7,14 @@ const os = require("os");
 const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
 const { Agent, MODELS, DEFAULT_MODEL, EFFORTS } = require("./src/agent");
+const { GeminiAgent, GEMINI_MODELS, DEFAULT_GEMINI_MODEL } = require("./src/gemini");
 const { Workspace } = require("./src/tools");
 
 const SETTINGS_FILE = () => path.join(app.getPath("userData"), "settings.json");
 const ATTACH_DIR = "첨부";
 
 let win = null;
-let settings = { model: DEFAULT_MODEL, effort: "medium", workspace: null, apiKeyEnc: null, apiKeyPlain: null, dock: false };
+let settings = { provider: "anthropic", geminiModel: DEFAULT_GEMINI_MODEL, geminiKeyEnc: null, geminiKeyPlain: null, model: DEFAULT_MODEL, effort: "medium", workspace: null, apiKeyEnc: null, apiKeyPlain: null, dock: false };
 let agent = null;
 let normalBounds = null; // 옆에 붙이기 전의 창 위치·크기
 const DOCK_WIDTH = 420;
@@ -30,6 +31,8 @@ function loadSettings() {
     settings = { ...settings, ...JSON.parse(fs.readFileSync(SETTINGS_FILE(), "utf8")) };
   } catch { /* 첫 실행 */ }
   if (!MODELS[settings.model]) settings.model = DEFAULT_MODEL;
+  if (!["anthropic", "gemini"].includes(settings.provider)) settings.provider = "anthropic";
+  if (typeof settings.geminiModel !== "string" || !settings.geminiModel) settings.geminiModel = DEFAULT_GEMINI_MODEL;
   if (!EFFORTS.includes(settings.effort)) settings.effort = "medium";
   if (settings.workspace && !fs.existsSync(settings.workspace)) settings.workspace = null;
 }
@@ -39,24 +42,41 @@ function saveSettings() {
   fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(settings, null, 2), { encoding: "utf8", mode: 0o600 });
 }
 
-function getApiKey() {
-  if (settings.apiKeyEnc && safeStorage.isEncryptionAvailable()) {
+function readKey(enc, plain) {
+  if (enc && safeStorage.isEncryptionAvailable()) {
     try {
-      return safeStorage.decryptString(Buffer.from(settings.apiKeyEnc, "base64"));
+      return safeStorage.decryptString(Buffer.from(enc, "base64"));
     } catch { /* 다른 컴퓨터에서 복사된 설정 등 */ }
   }
-  return settings.apiKeyPlain || process.env.ANTHROPIC_API_KEY || null;
+  return plain || null;
+}
+
+function getApiKey() {
+  return readKey(settings.apiKeyEnc, settings.apiKeyPlain) || process.env.ANTHROPIC_API_KEY || null;
+}
+
+function getGeminiKey() {
+  return readKey(settings.geminiKeyEnc, settings.geminiKeyPlain) || process.env.GEMINI_API_KEY || null;
+}
+
+/** 선택한 제공자의 키 */
+function activeKey() {
+  return settings.provider === "gemini" ? getGeminiKey() : getApiKey();
+}
+
+function storeKey(prefix, key) {
+  if (safeStorage.isEncryptionAvailable()) {
+    settings[prefix + "Enc"] = safeStorage.encryptString(key).toString("base64");
+    settings[prefix + "Plain"] = null;
+  } else {
+    // 암호화 저장소가 없는 환경(일부 Linux)에서는 사용자 폴더의 설정 파일에 저장
+    settings[prefix + "Enc"] = null;
+    settings[prefix + "Plain"] = key;
+  }
 }
 
 function setApiKey(key) {
-  if (safeStorage.isEncryptionAvailable()) {
-    settings.apiKeyEnc = safeStorage.encryptString(key).toString("base64");
-    settings.apiKeyPlain = null;
-  } else {
-    // 암호화 저장소가 없는 환경(일부 Linux)에서는 사용자 폴더의 설정 파일에 저장
-    settings.apiKeyEnc = null;
-    settings.apiKeyPlain = key;
-  }
+  storeKey(settings.provider === "gemini" ? "geminiKey" : "apiKey", key);
 }
 
 // ------------------------------------------------------------------ 에이전트
@@ -90,30 +110,39 @@ function buildAgent() {
   rejectPendingApprovals();
   if (agent) agent.stop();
   agent = null;
-  const key = getApiKey();
+  const key = activeKey();
   if (!key || !settings.workspace) return;
-  agent = new Agent({
-    client: new Anthropic({ apiKey: key }),
+  const common = {
     workspace: new Workspace(settings.workspace, { printPdf }),
-    model: settings.model,
-    effort: settings.effort,
     onEvent: (evt) => send("agent:event", evt),
     approve: (name, args, preview) => new Promise((resolve) => {
       const id = ++approvalSeq;
       pendingApprovals.set(id, resolve);
       send("agent:approval", { id, name, preview });
     }),
-  });
+  };
+  agent = settings.provider === "gemini"
+    ? new GeminiAgent({ ...common, apiKey: key, model: settings.geminiModel })
+    : new Agent({ ...common, client: new Anthropic({ apiKey: key }), model: settings.model, effort: settings.effort });
 }
 
 function state() {
+  const gemini = settings.provider === "gemini";
+  const list = (m) => Object.entries(m).map(([id, v]) => ({ id, label: v.label }));
   return {
-    model: settings.model,
+    provider: settings.provider,
+    providers: {
+      anthropic: { models: list(MODELS), model: settings.model, hasKey: !!getApiKey() },
+      gemini: { models: list(GEMINI_MODELS), model: settings.geminiModel, hasKey: !!getGeminiKey() },
+    },
+    model: gemini ? settings.geminiModel : settings.model,
     effort: settings.effort,
     workspace: settings.workspace,
-    hasKey: !!getApiKey(),
-    keyFromEnv: !settings.apiKeyEnc && !settings.apiKeyPlain && !!process.env.ANTHROPIC_API_KEY,
-    models: Object.entries(MODELS).map(([id, m]) => ({ id, label: m.label })),
+    hasKey: !!activeKey(),
+    keyFromEnv: gemini
+      ? !settings.geminiKeyEnc && !settings.geminiKeyPlain && !!process.env.GEMINI_API_KEY
+      : !settings.apiKeyEnc && !settings.apiKeyPlain && !!process.env.ANTHROPIC_API_KEY,
+    models: list(gemini ? GEMINI_MODELS : MODELS),
     efforts: EFFORTS,
     dock: !!settings.dock,
     cost: agent ? { total: agent.cost.usd, tokens: agent.cost.tokens } : null,
@@ -141,17 +170,23 @@ function uniquePath(dir, name) {
 function registerIpc() {
   ipcMain.handle("state:get", () => state());
 
-  ipcMain.handle("settings:save", (_e, { model, effort, apiKey }) => {
+  ipcMain.handle("settings:save", (_e, { provider, model, effort, apiKey }) => {
     let rebuild = false;
+    if ((provider === "anthropic" || provider === "gemini") && provider !== settings.provider) {
+      settings.provider = provider;
+      rebuild = true;
+    }
     if (typeof apiKey === "string" && apiKey.trim()) {
       setApiKey(apiKey.trim());
       rebuild = true;
     }
-    if (model && MODELS[model]) settings.model = model;
+    if (settings.provider === "gemini") {
+      if (typeof model === "string" && /^[\w.\-]{1,80}$/.test(model)) settings.geminiModel = model;
+    } else if (model && MODELS[model]) settings.model = model;
     if (effort && EFFORTS.includes(effort)) settings.effort = effort;
     saveSettings();
     if (rebuild || !agent) buildAgent();
-    else agent.setOptions({ model: settings.model, effort: settings.effort });
+    else agent.setOptions({ model: settings.provider === "gemini" ? settings.geminiModel : settings.model, effort: settings.effort });
     return state();
   });
 
@@ -173,7 +208,7 @@ function registerIpc() {
   });
 
   ipcMain.handle("chat:send", (_e, text) => {
-    if (!agent) return { ok: false, error: !getApiKey() ? "API 키를 먼저 입력하세요" : "작업 폴더를 먼저 선택하세요" };
+    if (!agent) return { ok: false, error: !activeKey() ? "API 키를 먼저 입력하세요" : "작업 폴더를 먼저 선택하세요" };
     if (agent.busy) return { ok: false, error: "이전 작업이 끝나지 않았습니다" };
     agent.send(String(text));
     return { ok: true };
