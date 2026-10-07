@@ -269,6 +269,11 @@ if (!app.requestSingleInstanceLock()) {
   if (process.platform === "linux") {
     // 크롬북(Crostini)에서는 Wayland 입력기가 한글을 못 받아서 X11(GTK 입력기 cros)로 강제한다.
     app.commandLine.appendSwitch("ozone-platform", "x11");
+    // 크롬북 가상GPU(virgl)에서 GPU 프로세스가 segfault로 죽어 창이 안 뜬다. 소프트웨어(swiftshader)로 그린다.
+    app.commandLine.appendSwitch("use-gl", "angle");
+    app.commandLine.appendSwitch("use-angle", "swiftshader");
+    app.commandLine.appendSwitch("enable-unsafe-swiftshader");
+    app.commandLine.appendSwitch("in-process-gpu");
   }
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
