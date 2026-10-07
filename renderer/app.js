@@ -32,6 +32,7 @@ const els = {
   modelSelect: $("modelSelect"),
   costLabel: $("costLabel"),
   newChatBtn: $("newChatBtn"),
+  dockBtn: $("dockBtn"),
   settingsBtn: $("settingsBtn"),
   settingsDialog: $("settingsDialog"),
   settingsForm: $("settingsForm"),
@@ -129,6 +130,9 @@ function applyState(s) {
     sel.value = s.model;
   }
   els.settingsEffort.value = s.effort;
+  document.body.classList.toggle("dock", !!s.dock);
+  els.dockBtn.textContent = s.dock ? "창으로 보기" : "옆에 붙이기";
+  els.input.placeholder = s.dock ? "메시지 입력 (Enter 보내기)" : "메시지 입력 (Enter 보내기, Shift+Enter 줄바꿈)";
   if (s.cost) els.costLabel.textContent = `$${s.cost.total.toFixed(4)}`;
 }
 
@@ -179,6 +183,7 @@ function clearConversation() {
 els.workspaceBtn.addEventListener("click", chooseWorkspace);
 els.openFolderBtn.addEventListener("click", () => bridge.openFolder());
 els.settingsBtn.addEventListener("click", openSettings);
+els.dockBtn.addEventListener("click", async () => applyState(await bridge.setDock(!state.dock)));
 els.modelSelect.addEventListener("change", async () => {
   applyState(await bridge.saveSettings({ model: els.modelSelect.value }));
 });

@@ -102,6 +102,14 @@ select {
 .primary:hover { filter: brightness(1.06); }
 .danger { color: var(--error); }
 
+/* 옆에 붙이기(좁은 창): 덜 중요한 것은 숨기고 줄바꿈 허용 */
+body.dock .topbar { flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
+body.dock .brand, body.dock .cost, body.dock #openFolderBtn, body.dock .spacer { display: none; }
+body.dock .workspace { max-width: 100%; flex: 1 1 100%; }
+body.dock #modelSelect { flex: 1 1 0; min-width: 0; }
+body.dock .welcome { margin-top: 3vh; }
+body.dock .conversation { padding: 14px 10px 20px; }
+
 /* 대화 */
 main { flex: 1; overflow-y: auto; }
 .conversation { max-width: 860px; margin: 0 auto; padding: 20px 18px 28px; }

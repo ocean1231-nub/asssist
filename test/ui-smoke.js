@@ -29,6 +29,7 @@ function mockApi(hasKey) {
   window.api = {
     getState: async () => st,
     saveSettings: async (s) => { calls.push(["save", s]); if (s.apiKey) st.hasKey = true; return st; },
+    setDock: async (on) => { calls.push(["dock", on]); st.dock = on; return st; },
     chooseWorkspace: async () => { calls.push(["choose"]); st.workspace = "/home/me/docs"; return st; },
     send: async (t) => { calls.push(["send", t]); emit({ type: "status", busy: true }); return { ok: true }; },
     stop: async () => calls.push(["stop"]),
@@ -67,6 +68,15 @@ function mockApi(hasKey) {
     const calls = await page.evaluate(() => window.__calls);
     check(calls[0][0] === "save" && calls[0][1].apiKey === "sk-ant-test", "키 저장 요청");
     check(calls.some((c) => c[0] === "choose"), "키 저장 후 작업 폴더 선택으로 넘어간다");
+    await page.setViewportSize({ width: 420, height: 800 });
+    await page.click("#dockBtn");
+    check((await page.evaluate(() => window.__calls)).some((c) => c[0] === "dock" && c[1] === true), "옆에 붙이기 요청");
+    check(await page.evaluate(() => document.body.classList.contains("dock")), "붙이면 dock 모드가 된다");
+    check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "좁은 창에서 가로로 넘치지 않는다");
+    if (outDir) await page.screenshot({ path: path.join(outDir, "1-dock.png") });
+    await page.click("#dockBtn");
+    check(!(await page.evaluate(() => document.body.classList.contains("dock"))), "다시 누르면 dock 모드가 풀린다");
+    await page.setViewportSize({ width: 1120, height: 772 });
     await page.close();
   }
 

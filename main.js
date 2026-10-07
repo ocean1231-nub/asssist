@@ -1,7 +1,7 @@
 "use strict";
 // Electron 메인 프로세스: 창, 설정 저장, 에이전트 실행, 화면과의 IPC
 
-const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, Menu, screen } = require("electron");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -13,8 +13,10 @@ const SETTINGS_FILE = () => path.join(app.getPath("userData"), "settings.json");
 const ATTACH_DIR = "첨부";
 
 let win = null;
-let settings = { model: DEFAULT_MODEL, effort: "medium", workspace: null, apiKeyEnc: null, apiKeyPlain: null };
+let settings = { model: DEFAULT_MODEL, effort: "medium", workspace: null, apiKeyEnc: null, apiKeyPlain: null, dock: false };
 let agent = null;
+let normalBounds = null; // 옆에 붙이기 전의 창 위치·크기
+const DOCK_WIDTH = 420;
 const pendingApprovals = new Map();
 let approvalSeq = 0;
 
@@ -110,6 +112,7 @@ function state() {
     keyFromEnv: !settings.apiKeyEnc && !settings.apiKeyPlain && !!process.env.ANTHROPIC_API_KEY,
     models: Object.entries(MODELS).map(([id, m]) => ({ id, label: m.label })),
     efforts: EFFORTS,
+    dock: !!settings.dock,
     cost: agent ? { total: agent.cost.usd, tokens: agent.cost.tokens } : null,
   };
 }
@@ -146,6 +149,13 @@ function registerIpc() {
     saveSettings();
     if (rebuild || !agent) buildAgent();
     else agent.setOptions({ model: settings.model, effort: settings.effort });
+    return state();
+  });
+
+  ipcMain.handle("window:dock", (_e, on) => {
+    settings.dock = !!on;
+    saveSettings();
+    applyDock(settings.dock);
     return state();
   });
 
@@ -230,6 +240,34 @@ function refocus() {
   win.webContents.focus();
 }
 
+/** 화면 오른쪽 가장자리에 좁게 붙여 항상 위에 띄운다(브라우저 옆에 두고 쓰는 용도). */
+function applyDock(on) {
+  if (!win) return;
+  let target;
+  if (on) {
+    if (!normalBounds && !win.isAlwaysOnTop()) normalBounds = win.getBounds();
+    const wa = screen.getDisplayMatching(win.getBounds()).workArea;
+    // 크롬북(X11)은 보이지 않는 창 테두리 때문에 실제 창이 더 커져 아래쪽(입력창)이 잘려서 여유를 둔다.
+    const margin = process.platform === "linux" ? 48 : 0;
+    target = { x: wa.x + wa.width - DOCK_WIDTH, y: wa.y + margin / 2, width: DOCK_WIDTH, height: wa.height - margin };
+    win.setMinimumSize(320, 420);
+    win.setAlwaysOnTop(true, "floating");
+  } else {
+    target = normalBounds || (() => {
+      const wa = screen.getDisplayMatching(win.getBounds()).workArea;
+      return { x: wa.x + Math.round((wa.width - 1120) / 2), y: wa.y + Math.round((wa.height - 800) / 2), width: 1120, height: 800 };
+    })();
+    normalBounds = null;
+    win.setAlwaysOnTop(false);
+    win.setMinimumSize(720, 520);
+  }
+  // X11(크롬북)에서는 크기 변경이 비동기라 한 번 더 적용해야 안정적이다.
+  win.setBounds(target);
+  setTimeout(() => {
+    if (win && settings.dock === on) win.setBounds(target);
+  }, 250);
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1120,
@@ -252,6 +290,9 @@ function createWindow() {
   });
   win.webContents.on("will-navigate", (e) => e.preventDefault());
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
+  win.webContents.once("did-finish-load", () => {
+    if (settings.dock) setTimeout(() => applyDock(true), 300);
+  });
   win.on("closed", () => {
     win = null;
   });

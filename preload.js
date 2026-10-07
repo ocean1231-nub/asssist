@@ -6,6 +6,7 @@ const { contextBridge, ipcRenderer, webUtils } = require("electron");
 contextBridge.exposeInMainWorld("api", {
   getState: () => ipcRenderer.invoke("state:get"),
   saveSettings: (s) => ipcRenderer.invoke("settings:save", s),
+  setDock: (on) => ipcRenderer.invoke("window:dock", on),
   chooseWorkspace: () => ipcRenderer.invoke("workspace:choose"),
   send: (text) => ipcRenderer.invoke("chat:send", text),
   stop: () => ipcRenderer.invoke("chat:stop"),
