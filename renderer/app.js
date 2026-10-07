@@ -107,6 +107,7 @@ function setThinking(on) {
 
 function setBusy(b) {
   busy = b;
+  for (const t of document.querySelectorAll(".task")) t.disabled = b;
   els.sendBtn.textContent = b ? "중단" : "보내기";
   els.sendBtn.className = b ? "danger" : "primary";
   setThinking(b);
@@ -241,6 +242,27 @@ for (const b of document.querySelectorAll(".example")) {
     els.input.value = b.textContent;
     autoGrow();
     els.input.focus();
+  });
+}
+
+// ------------------------------------------------------------------ 보고서 작업 버튼
+
+const COMMON_RULES =
+  "규칙: 원본 파일은 덮어쓰지 말고 새 파일로 저장한다. 근거 자료에 없는 수치·사실은 지어내지 말고 그 자리에 [확인 필요]로 표시한 뒤 마지막에 목록으로 알려준다.";
+const TASKS = {
+  form:
+    "작업 폴더에서 보고서 양식·서식으로 보이는 파일(hwpx, docx 등)을 찾아 후보를 목록으로 보여줘. 각 후보마다 파일명, 목차 구조, 작성해야 할 빈칸·표를 한 줄씩 정리하고, 어떤 양식을 쓸지 내가 고를 수 있게 번호를 붙여줘. 파일은 바꾸지 마.",
+  draft:
+    "선택한 양식과 작업 폴더의 근거 자료(실적, 보고, 회의 기록 등)를 읽고 보고서 초안을 새 파일로 작성해줘. 양식의 목차와 개조식 문체를 따른다. " + COMMON_RULES,
+  verify:
+    "대상 문서(없으면 가장 최근 보고서) 안의 숫자와 실적이 서로 맞는지 검증해줘. 결과는 서술 말고 목록으로만 보여줘. 항목마다 한 줄씩 `위치(쪽·표) | 항목 | 값 A ↔ 값 B | 일치/불일치/근거 없음` 형식으로 쓰고, 불일치와 근거 없음을 맨 위에 모아줘. 문서는 고치지 마.",
+  polish:
+    "대상 문서를 개조식(명사형 종결, 짧은 항목)으로 다듬어 새 파일로 저장해줘. 의미나 수치는 바꾸지 말고, 문체와 항목 구조만 정리한다. " + COMMON_RULES,
+};
+for (const b of document.querySelectorAll(".task")) {
+  b.addEventListener("click", () => {
+    const extra = els.input.value.trim();
+    sendMessage(TASKS[b.dataset.task] + (extra ? "\n\n[추가 지시] " + extra : ""));
   });
 }
 

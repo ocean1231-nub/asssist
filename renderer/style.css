@@ -291,3 +291,14 @@ dialog h2 { margin: 0 0 14px; font-size: 18px; }
 }
 .field small { color: var(--muted); font-size: 12px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+
+.tasks { display: flex; flex-wrap: wrap; gap: 6px; max-width: 860px; margin: 0 auto 8px; }
+.task {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.task:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.task:disabled { opacity: 0.5; cursor: default; }
