@@ -8,11 +8,10 @@ const { SYSTEM_PROMPT, toolDetail, createdPath } = require("./agent");
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 // 가격 표시는 하지 않는다(무료 키가 기본). 모델 이름은 구글이 바꿀 수 있어 설정에서 직접 입력도 받는다.
 const GEMINI_MODELS = {
-  "gemini-2.5-flash": { label: "Gemini 2.5 Flash (무료 한도 넉넉, 권장)" },
-  "gemini-2.5-flash-lite": { label: "Gemini 2.5 Flash-Lite (가장 빠르고 한도 큼)" },
-  "gemini-2.5-pro": { label: "Gemini 2.5 Pro (가장 정확, 무료 한도 작음)" },
+  "gemini-3.8-flash": { label: "Gemini 3.8 Flash (권장)" },
+  "gemini-3.5-flash-lite": { label: "Gemini 3.5 Flash-Lite (가장 가볍고 한도 큼)" },
 };
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
 const MAX_OUTPUT_TOKENS = 32000;
 const MAX_STEPS = 40; // 도구 호출 반복 상한 (무한 반복·한도 소진 방지)
 
@@ -38,7 +37,8 @@ class GeminiError extends Error {
 }
 
 class GeminiAgent {
-  constructor({ apiKey, workspace, model = DEFAULT_GEMINI_MODEL, onEvent, approve, baseUrl = BASE_URL, fetchImpl }) {
+  constructor({ apiKey, workspace, model = DEFAULT_GEMINI_MODEL, onEvent, approve, onModelChange, baseUrl = BASE_URL, fetchImpl }) {
+    this.onModelChange = onModelChange;
     this.apiKey = apiKey;
     this.ws = workspace;
     this.model = model;
@@ -154,13 +154,27 @@ class GeminiAgent {
     const turnStart = this.messages.length;
     this.messages.push({ role: "user", parts: [{ text: userText }] });
     const rollback = () => this.messages.splice(turnStart);
+    let switched = false;
     try {
       for (let step = 0; ; step++) {
         if (step >= MAX_STEPS) {
           this.onEvent({ type: "notice", level: "warn", text: `도구를 ${MAX_STEPS}번 쓰고 멈췄습니다. 이어서 하려면 '계속'이라고 입력하세요.` });
           return;
         }
-        const turn = await this.streamTurn();
+        let turn;
+        try {
+          turn = await this.streamTurn();
+        } catch (e) {
+          // 구글이 모델 이름을 바꿨으면(예: "use models/gemini-3.8-flash") 안내된 모델로 한 번 바꿔서 다시 시도한다
+          const next = e instanceof GeminiError && e.status === 404 && /models\/([\w.\-]+)/.exec((e.message || "").replace(/This model models\/[\w.\-]+/, ""));
+          if (!next || next[1] === this.model || switched) throw e;
+          switched = true;
+          this.model = next[1];
+          if (this.onModelChange) this.onModelChange(this.model);
+          this.onEvent({ type: "notice", level: "info", text: `모델 이름이 바뀌어 ${this.model}(으)로 자동 전환했습니다.` });
+          step--;
+          continue;
+        }
         const u = turn.usage || {};
         const t = { input: u.promptTokenCount || 0, cache_write: 0, cache_read: u.cachedContentTokenCount || 0, output: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0) };
         for (const k of Object.keys(t)) this.cost.tokens[k] += t[k];
@@ -282,7 +296,10 @@ function describeError(e) {
     if (e.status >= 500) return "Gemini 서버가 잠시 불안정합니다. 잠시 후 다시 시도하세요.";
     return `Gemini 요청 오류 ${e.status}: ${m}`;
   }
-  if (e && (e.name === "TypeError" || e.code === "ECONNRESET")) return "인터넷 연결을 확인하세요.";
+  if (e && (e.name === "TypeError" || e.code === "ECONNRESET")) {
+    const why = (e.cause && (e.cause.code || e.cause.message)) || e.message || "";
+    return `Gemini 서버와 연결하지 못했습니다${why ? ` (${why})` : ""}. 인터넷 연결을 확인하고 다시 시도하세요.`;
+  }
   return `오류: ${(e && e.message) || e}`;
 }
 

@@ -424,7 +424,7 @@ test("Gemini 에이전트: 도구 호출 후 답변 (가짜 서버)", async () =
   const agent = new GeminiAgent({ apiKey: "K", workspace: ws, onEvent: (e) => events.push(e), approve: async () => ({ approved: true }), fetchImpl });
   await agent.send("g.txt 읽어줘");
 
-  assert.match(bodies[0].url, /gemini-2\.5-flash:streamGenerateContent\?alt=sse$/);
+  assert.match(bodies[0].url, /gemini-3.8-flash:streamGenerateContent\?alt=sse$/);
   assert.equal(bodies[0].headers["x-goog-api-key"], "K");
   const decl = bodies[0].body.tools[0].functionDeclarations;
   assert.ok(decl.some((d) => d.name === "read_file"));
@@ -452,4 +452,21 @@ test("Gemini 에이전트: 오류는 한국어 안내로, 기록은 되돌린다
     assert.match(events.find((e) => e.level === "error").text, re);
     assert.equal(agent.messages.length, 0);
   }
+});
+
+test("Gemini 에이전트: 모델 이름이 바뀌면 안내된 모델로 자동 전환", async () => {
+  const { GeminiAgent } = require("../src/gemini");
+  const urls = [];
+  const fetchImpl = async (url) => {
+    urls.push(url);
+    if (urls.length === 1) return new Response(JSON.stringify({ error: { message: "This model models/old-flash is no longer available to new users. Please use models/new-flash for the latest." } }), { status: 404 });
+    return sseResponse([{ candidates: [{ content: { role: "model", parts: [{ text: "ok" }] }, finishReason: "STOP" }] }]);
+  };
+  const changed = [];
+  const events = [];
+  const agent = new GeminiAgent({ apiKey: "K", model: "old-flash", workspace: new Workspace(tmp, {}), onEvent: (e) => events.push(e), approve: async () => ({}), onModelChange: (m) => changed.push(m), fetchImpl });
+  await agent.send("x");
+  assert.deepEqual(changed, ["new-flash"]);
+  assert.match(urls[1], /models\/new-flash:/);
+  assert.ok(events.some((e) => e.type === "text" && e.text === "ok"));
 });

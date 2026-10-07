@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("api", {
   getState: () => ipcRenderer.invoke("state:get"),
   saveSettings: (s) => ipcRenderer.invoke("settings:save", s),
   setDock: (on) => ipcRenderer.invoke("window:dock", on),
+  onStateChanged: (cb) => ipcRenderer.on("state:changed", (_e, st) => cb(st)),
   onDockChanged: (cb) => ipcRenderer.on("window:dock-changed", (_e, st) => cb(st)),
   chooseWorkspace: () => ipcRenderer.invoke("workspace:choose"),
   send: (text) => ipcRenderer.invoke("chat:send", text),

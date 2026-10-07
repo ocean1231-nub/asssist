@@ -122,18 +122,22 @@ function buildAgent() {
     }),
   };
   agent = settings.provider === "gemini"
-    ? new GeminiAgent({ ...common, apiKey: key, model: settings.geminiModel })
+    ? new GeminiAgent({ ...common, apiKey: key, model: settings.geminiModel, onModelChange: (m) => { settings.geminiModel = m; saveSettings(); send("state:changed", state()); } })
     : new Agent({ ...common, client: new Anthropic({ apiKey: key }), model: settings.model, effort: settings.effort });
 }
 
 function state() {
   const gemini = settings.provider === "gemini";
-  const list = (m) => Object.entries(m).map(([id, v]) => ({ id, label: v.label }));
+  const list = (m, cur) => {
+    const l = Object.entries(m).map(([id, v]) => ({ id, label: v.label }));
+    if (cur && !m[cur]) l.push({ id: cur, label: cur }); // 목록에 없는 모델(구글이 이름을 바꾼 경우 등)도 선택된 채로 보이게
+    return l;
+  };
   return {
     provider: settings.provider,
     providers: {
       anthropic: { models: list(MODELS), model: settings.model, hasKey: !!getApiKey() },
-      gemini: { models: list(GEMINI_MODELS), model: settings.geminiModel, hasKey: !!getGeminiKey() },
+      gemini: { models: list(GEMINI_MODELS, settings.geminiModel), model: settings.geminiModel, hasKey: !!getGeminiKey() },
     },
     model: gemini ? settings.geminiModel : settings.model,
     effort: settings.effort,
@@ -142,7 +146,7 @@ function state() {
     keyFromEnv: gemini
       ? !settings.geminiKeyEnc && !settings.geminiKeyPlain && !!process.env.GEMINI_API_KEY
       : !settings.apiKeyEnc && !settings.apiKeyPlain && !!process.env.ANTHROPIC_API_KEY,
-    models: list(gemini ? GEMINI_MODELS : MODELS),
+    models: gemini ? list(GEMINI_MODELS, settings.geminiModel) : list(MODELS),
     efforts: EFFORTS,
     dock: !!settings.dock,
     cost: agent ? { total: agent.cost.usd, tokens: agent.cost.tokens } : null,
