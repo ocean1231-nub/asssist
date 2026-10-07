@@ -1,7 +1,7 @@
 "use strict";
 /* global marked, DOMPurify */
 
-const api = window.api;
+const bridge = window.api; // 최상위 const api는 contextBridge가 만든 전역 window.api와 충돌해 SyntaxError가 난다
 const $ = (id) => document.getElementById(id);
 
 const TOOL_LABELS = {
@@ -151,7 +151,7 @@ els.settingsForm.addEventListener("submit", async (e) => {
     els.apiKeyInput.focus();
     return;
   }
-  applyState(await api.saveSettings({ apiKey, model: els.settingsModel.value, effort: els.settingsEffort.value }));
+  applyState(await bridge.saveSettings({ apiKey, model: els.settingsModel.value, effort: els.settingsEffort.value }));
   els.settingsDialog.close();
   if (apiKey) notice("info", "API 키를 저장했습니다. 대화를 새로 시작합니다.");
   if (!state.workspace) chooseWorkspace();
@@ -160,7 +160,7 @@ els.settingsForm.addEventListener("submit", async (e) => {
 async function chooseWorkspace() {
   if (busy) return;
   const before = state.workspace;
-  applyState(await api.chooseWorkspace());
+  applyState(await bridge.chooseWorkspace());
   els.input.focus();
   if (state.workspace && state.workspace !== before) {
     clearConversation();
@@ -177,13 +177,13 @@ function clearConversation() {
 }
 
 els.workspaceBtn.addEventListener("click", chooseWorkspace);
-els.openFolderBtn.addEventListener("click", () => api.openFolder());
+els.openFolderBtn.addEventListener("click", () => bridge.openFolder());
 els.settingsBtn.addEventListener("click", openSettings);
 els.modelSelect.addEventListener("change", async () => {
-  applyState(await api.saveSettings({ model: els.modelSelect.value }));
+  applyState(await bridge.saveSettings({ model: els.modelSelect.value }));
 });
 els.newChatBtn.addEventListener("click", async () => {
-  await api.reset();
+  await bridge.reset();
   setBusy(false);
   clearConversation();
 });
@@ -204,7 +204,7 @@ async function sendMessage(text) {
   if (pendingFiles.length) {
     text = (text || "첨부한 파일을 확인해줘") + "\n\n[첨부 파일] " + pendingFiles.join(", ");
   }
-  const r = await api.send(text);
+  const r = await bridge.send(text);
   if (!r.ok) {
     notice("error", r.error);
     return;
@@ -227,7 +227,7 @@ els.input.addEventListener("keydown", (e) => {
   }
 });
 els.sendBtn.addEventListener("click", () => {
-  if (busy) api.stop();
+  if (busy) bridge.stop();
   else sendMessage(els.input.value);
 });
 for (const b of document.querySelectorAll(".example")) {
@@ -258,9 +258,9 @@ async function attachFiles(fileList) {
     notice("warn", "작업 폴더를 먼저 선택하세요.");
     return;
   }
-  const paths = [...fileList].map((f) => api.pathForFile(f)).filter(Boolean);
+  const paths = [...fileList].map((f) => bridge.pathForFile(f)).filter(Boolean);
   if (!paths.length) return;
-  const r = await api.attach(paths);
+  const r = await bridge.attach(paths);
   if (r.error) return notice("error", r.error);
   for (const f of r.files) if (!pendingFiles.includes(f)) pendingFiles.push(f);
   renderAttachments();
@@ -297,7 +297,7 @@ document.addEventListener("click", (e) => {
   const a = e.target.closest("a[href]");
   if (!a) return;
   e.preventDefault();
-  api.openLink(a.href);
+  bridge.openLink(a.href);
 });
 
 // ------------------------------------------------------------------ 에이전트 이벤트
@@ -320,7 +320,7 @@ function queueRender(block) {
   });
 }
 
-api.onEvent((evt) => {
+bridge.onEvent((evt) => {
   switch (evt.type) {
     case "status":
       setBusy(evt.busy);
@@ -357,7 +357,7 @@ api.onEvent((evt) => {
       const label = TOOL_LABELS[evt.name] || evt.name;
       t.summary.textContent = `${label}${evt.detail ? ` · ${evt.detail}` : ""} — ${evt.summary}`;
       t.summary.title = t.summary.textContent;
-      if (evt.path) t.row.appendChild(button("열기", "ghost small", () => api.openFile(evt.path)));
+      if (evt.path) t.row.appendChild(button("열기", "ghost small", () => bridge.openFile(evt.path)));
       break;
     }
     case "cost":
@@ -403,7 +403,7 @@ function renderPreview(pre, preview) {
   }
 }
 
-api.onApproval((req) => {
+bridge.onApproval((req) => {
   current = null;
   setThinking(false);
   const card = div("approval");
@@ -426,7 +426,7 @@ api.onApproval((req) => {
   const finish = (approved, always, feedback, label) => {
     if (!openApprovals.has(card)) return;
     openApprovals.delete(card);
-    api.respondApproval({ id: req.id, approved, always, feedback });
+    bridge.respondApproval({ id: req.id, approved, always, feedback });
     card.classList.add("done");
     card.classList.remove("rejecting");
     actions.remove();
@@ -468,14 +468,14 @@ api.onApproval((req) => {
   allow.focus();
 });
 
-api.onApprovalCancel(() => {
+bridge.onApprovalCancel(() => {
   for (const card of [...openApprovals]) card.cancel();
 });
 
 // ------------------------------------------------------------------ 시작
 
 (async () => {
-  applyState(await api.getState());
+  applyState(await bridge.getState());
   if (state.keyFromEnv) els.apiKeyHint.textContent = "환경변수 ANTHROPIC_API_KEY 의 키를 쓰고 있습니다. 여기 입력하면 이 키를 대신 씁니다.";
   // 시작할 때 창을 띄우지 않는다 (입력창을 바로 쓸 수 있게). 키/폴더는 처음 보낼 때 묻는다.
   if (!state.hasKey) notice("info", "API 키가 없습니다. 먼저 질문을 입력해 보세요. 보낼 때 키 입력 창이 열립니다.");
